@@ -21,7 +21,7 @@ type Crop = {
     id: string;
     startTime: number;
     lastWater: number;
-    userId: number;
+    userId: string;
     growth: number;
     xCoordinate: number;
     yCoordinate: number;
@@ -99,7 +99,7 @@ class HouseItemsCollection {
 class CropData {
     coords;
     id: string;
-    userId: number;
+    userId: string;
     growth: number;
 
     constructor(coords, id, userId, growth) {
@@ -120,7 +120,6 @@ class CropsCollection {
     //init the local data of crops aftr fetching from api and spawn objs
     _init(response) {
         response.forEach(element => {
-            // if (element == null) continue;
             let x = element.xCoordinate;
             let y = element.yCoordinate;
             this.add(x, y, element.id, element.userId, element.growth);
@@ -136,7 +135,17 @@ class CropsCollection {
         return this.listOfCrops.hasOwnProperty(this._key(x, y));
     }
 
+    getGrowth(x, y) {
+        this.listOfCrops.forEach(element => {
+            if (element.coords == this._key(x, y)){
+                return element.growth;
+            }
+        });
+        return 0;
+    }
+
     add(x, y, id, userId, growth) {
+        utils.log("added to list");
         this.listOfCrops.push(new CropData(this._key(x, y), id, userId, growth));
         this.put(x, y, cropImgs[growth]);
     }
@@ -149,8 +158,7 @@ class CropsCollection {
 
     update(x, y, growth) {
         utils.log(`crop grew at ${x} ${y} to ${growth}`);
-        this.put(x, y, cropImgs[this.listOfCrops[this._key(x, y)].growth]);
-        this.listOfCrops[this._key(x, y)] = cropImgs[this.listOfCrops[this._key(x, y)]];
+        this.put(x, y, cropImgs[growth]);
     }
 
     remove(x, y) {
@@ -263,36 +271,29 @@ function key_F(player) {
         utils.log(`nothing to water/harvest/clean up ${x} ${y}`);
     }
     else { //if tile is crop
-        //check if curr player id == crop.userId
-        if (player.id == crops.listOfCrops[crops._key(x, y)].userId) {
             //can call api to do action
             //< 0 means withered, can clean up > 2 means can harvest
-            if (crops.listOfCrops[crops._key(x, y)].growth < 0 || crops.listOfCrops[crops._key(x, y)].growth > 2) {
+            if (crops.getGrowth(x,y) < 0 || crops.getGrowth(x,y) > 3) {
                 //call api to harvest/clean
-                ScriptApp.httpPost("https://busanhackathon.azure-api.net/v1/clean", null, { "id": crops.listOfCrops[crops._key(x, y)].id }, function (res) {
-                    //if success, delete obj at x,y
+                // utils.log("growth: " + crops.getGrowth(x,y));
+                ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/remove-crop?x=${x}&y=${y}`, null, function (res) {
+                    utils.log("clean crops");
                     crops.remove(x, y);
-                    //if growth > 2, put harvest crop on ground
-                    crops.put(x, y, zeplogo);
-                    //pass in crop id to backend to up the growth
-                    //then update the crop status
                 })
             }
             else { //water the crop
                 //call api to water crop
-                ScriptApp.httpPost("https://busanhackathon.azure-api.net/v1/water-plant", null, { "id": crops.listOfCrops[crops._key(x, y)].id }, function (res) {
-                    utils.log(res);
-                    let response = JSON.parse(res) as Crop;
-                    crops.update(response[0].xCoordinate, response[0].yCoordinate, response[0].growth);
-                    //pass in crop id to backend to up the growth
-                    //then update the crop status
-                    utils.log("You just watered the crop");
+                ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/water-plant?x=${x}&y=${y}`, null, function (res) {
+                    if (res == "Cannot water"){
+                        crops.remove(x, y);
+                    }
+                    else{
+                        let response = JSON.parse(res) as Crop;
+                        crops.update(response['xCoordinate'], response['yCoordinate'], response['growth']);
+                        utils.log("You just watered the crop");
+                    }
                 })
             }
-        }
-        else {
-            utils.log(`You can't interact with crops that are not your's`);
-        }
     }
     if (pstate.picked_object == null) {
         if (!house_items.has(x, y)) {
@@ -325,12 +326,17 @@ function key_R(player) {
 
 function key_P(player) {
     //call api to plant
-    utils.log("key press to plant");
-    ScriptApp.httpPost("https://busanhackathon.azure-api.net/v1/plant-crops", null, { "userId": player.id, "xCoordinate": player.tileX, "yCoordinate": player.tileY }, function (res) {
-        utils.log("posted");
+    ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/plant-crops?UserId=${player.id}&XCoordinate=${player.tileX}&YCoordinate=${player.tileY}`,
+    null ,
+    function (res) {
+        if (res == "There is a crop that exists in the same coordinate")
+            utils.log(res);
+        else{
         let response = JSON.parse(res) as Crop;
-        crops.add(response[0].xCoordinate, response[0].yCoordinate, response[0].id, response[0].userId, response[0].growth);
+            utils.log(res);
+            crops.add(response['xCoordinate'], response['yCoordinate'], response['id'], response['userId'], response['growth']);
         utils.log("You just planted a crop");
+        }
     })
 }
 
