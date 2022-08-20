@@ -1,7 +1,7 @@
 import "zep-script";
 
 namespace utils {
-  function log(s) {
+  export function log(s) {
     ScriptApp.sayToAll(s);
   }
 }
@@ -52,7 +52,7 @@ class HouseItemsCollection {
   }
 
   put(x, y, sprite) {
-    log(`put house item ${x} ${y} ${sprite}`);
+    utils.log(`put house item ${x} ${y} ${sprite}`);
     ScriptMap.putObject(x, y, sprite, { overlap: true });
     this.coords[this._key(x, y)] = sprite;
   }
@@ -60,7 +60,7 @@ class HouseItemsCollection {
   remove(x, y) {
     let old_obj = this.coords[this._key(x, y)] || null;
 
-    log(`remove house item ${x} ${y} ${old_obj}`);
+    utils.log(`remove house item ${x} ${y} ${old_obj}`);
 
     ScriptMap.putObject(x, y, null);
     this.coords[this._key(x, y)] = null;
@@ -120,36 +120,37 @@ function onTileTouched(x, y, player) {
 // === Keys ===
 
 function key_F(player) {
-  // let [x, y] = [player.tileX, player.tileY];
-  // if (!house_items.has(x, y)) {
-  //   log(`nothing to pick up ${x} ${y}`);
-  //   return;
-  // }
+  let [x, y] = [player.tileX, player.tileY];
   
-  // let pstate = player_states.get(player.id);
+  let pstate = player_states.get(player.id);
 
-  // if (pstate.picked_object == null) {
-  //   let sprite = house_items.remove(x, y);
+  if (pstate.picked_object == null) {
+    if (!house_items.has(x, y)) {
+      utils.log(`nothing to pick up ${x} ${y}`);
+      return;
+    }
 
-  //   log(`picking up ${x} ${y} Sprite(${sprite.keys()})`);
+    let sprite = house_items.remove(x, y);
 
-  //   pstate.picked_object = [x, y, sprite];
-  // } else {
-  //   let [x, y, sprite] = pstate.picked_object;
-  //   log(`putting down ${x} ${y} Sprite(${sprite.keys()})`);
-  //   house_items.put(x, y, sprite);
-  //   pstate.picked_object = null;
-  // }
+    utils.log(`picking up ${x} ${y} Sprite: ` + JSON.stringify(Object.keys(sprite)));
+
+    pstate.picked_object = [x, y, sprite];
+  } else {
+    let [_x, _y, sprite] = pstate.picked_object;
+    utils.log(`putting down ${x} ${y} Sprite: ` + JSON.stringify(Object.keys(sprite)));
+    house_items.put(x, y, sprite);
+    pstate.picked_object = null;
+  }
 }
 
 function key_T(player) {
-  // house_items.put(player.tileX, player.tileY, blueman);
-  log(`put object (blueman) ${player.tileX}, ${player.tileY}`);
+  house_items.put(player.tileX, player.tileY, blueman);
+  utils.log(`put object (blueman) ${player.tileX}, ${player.tileY}`);
 }
 
 function key_R(player) {
-  // house_items.put(player.tileX, player.tileY, zeplogo);
-  log(`put object (zeplogo) ${player.tileX}, ${player.tileY}`);
+  house_items.put(player.tileX, player.tileY, zeplogo);
+  utils.log(`put object (zeplogo) ${player.tileX}, ${player.tileY}`);
 }
 
 function key_Q(player) {}
@@ -168,6 +169,6 @@ ScriptApp.onJoinPlayer.Add(function(player){
 //     let player = ScriptApp.players[id];
 //     let [object_x, object_y] = picked_object_coord[id];
 //     ScriptMap.moveObject(object_x, object_y, player.tileX, player.tileY, 1);
-//     log(`${object_x}, ${object_y}, ${player.tileX}, ${player.tileY}`);
+//     utils.log(`${object_x}, ${object_y}, ${player.tileX}, ${player.tileY}`);
 //   }
 // });
