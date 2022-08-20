@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "noEmit": true,
-    "isolatedModules": true,
-    "downlevelIteration": true
+    "noEmit": false,
+    "isolatedModules": false,
+    "downlevelIteration": true,
+    "outDir": "ts-out/"
   }
 }

@@ -1,8 +1,33 @@
+// Pickup Items
+
+import { time } from "console";
 import "zep-script";
+import { ScriptPlayer } from "zep-script";
 
 namespace utils {
   export function log(s) {
     ScriptApp.sayToAll(s);
+  }
+
+  export function runLaterSeries(...pairs) {
+    ScriptApp.sayToAll(`${pairs}`);
+    let [last_time, last_cb] = pairs[pairs.length-1];
+    let total_cb = function() {
+      ScriptApp.runLater(last_cb, last_time);
+    };
+
+    for (let i = pairs.length - 2; i >= 0; i--) {
+      let [time, cb] = pairs[i];
+      let temp_cb = function() {
+        ScriptApp.runLater(function() {
+          cb();
+          total_cb();
+        }, time);
+      };
+      total_cb = temp_cb;
+    }
+
+    total_cb();
   }
 }
 
@@ -69,13 +94,35 @@ class HouseItemsCollection {
   }
 }
 
+// load sprite
+let redman = ScriptApp.loadSpritesheet('redman.png', 48, 64, {
+  left: [5, 6, 7, 8, 9],       // defined base anim 
+  up: [15, 16, 17, 18, 19],    // defined base anim 
+  down: [0, 1, 2, 3, 4],       // defined base anim 
+  right: [10, 11, 12, 13, 14], // defined base anim 
+}, 16);
+
+// load sprite
+let blueman = ScriptApp.loadSpritesheet('blueman.png', 48, 64, {
+  left: [5, 6, 7, 8, 9],
+  up: [15, 16, 17, 18, 19],
+  down: [0, 1, 2, 3, 4],
+  right: [10, 11, 12, 13, 14],
+}, 16);
+
+//left: [34, 2, 27, 28, 27, 28],
+let blueman_pickup02 = ScriptApp.loadSpritesheet('blueman/tile002.png');
+let blueman_pickup34 = ScriptApp.loadSpritesheet('blueman/tile034.png');
+let oldman_pickup04 = ScriptApp.loadSpritesheet('oldman_pickup/tile004.png');
+let oldman_pickup05 = ScriptApp.loadSpritesheet('oldman_pickup/tile005.png');
+
 let house_items = new HouseItemsCollection();
-let zeplogo = ScriptApp.loadSpritesheet("zep_logo.png");
-let blueman = ScriptApp.loadSpritesheet("blueman.png");
+let blueman_static = ScriptApp.loadSpritesheet("blueman_static.png");
 let player_states = new PlayerStateCollection();
 
 // App
 ScriptApp.onStart.Add(onStart);
+ScriptApp.onUpdate.Add(onUpdate);
 ScriptApp.onDestroy.Add(onDestroy);
 // Player
 ScriptApp.onJoinPlayer.Add(onJoinPlayer);
@@ -100,8 +147,30 @@ function onStart() {
   }
 
   // debug
-  ScriptMap.putObject(30, 57, blueman, { overlap: true });
+  ScriptMap.putObject(30, 57, blueman_static, { overlap: true });
   ScriptMap.moveObject(30, 57, 40, 67, 0);
+}
+
+function onUpdate() {
+  for (let id in ScriptApp.players) {
+    let player = ScriptApp.players[id];
+
+    let anim = player.tag.pickup_anim || null;
+
+    if (anim != null) {
+      utils.log(`player [${player.name}] - anim ${anim}`);
+
+      if (anim == 1) {
+        player.sprite = redman;
+        player.sendUpdated();
+      }
+
+      if (anim > 0) {
+        player.tag.pickup_anim--;
+        player.save();
+      }
+    }
+  }
 }
 
 function onDestroy() {
@@ -111,6 +180,8 @@ function onDestroy() {
 // === Player lifecycle ===
 
 function onJoinPlayer(player) {
+  player.tag = {}
+  player.save();
   player.showCenterLabel(`player ${player.name} joined. Gazzzaaa!`);
 }
 
@@ -121,6 +192,33 @@ function onTileTouched(x, y, player) {
 
 function key_F(player) {
   let [x, y] = [player.tileX, player.tileY];
+  
+  // player.tag.pickup_anim = 100;
+  player.sprite = oldman_pickup04;
+  player.sendUpdated();
+  player.save();
+
+  utils.runLaterSeries(
+    [
+      2,
+      () => { ScriptApp.sayToAll('F1'); }
+    ],
+    [
+      2,
+      () => { ScriptApp.sayToAll('F2'); }
+    ],
+    [
+      2,
+      () => { ScriptApp.sayToAll('F3'); }
+    ],
+  );
+
+  // ScriptApp.runLater(
+  //   ScriptApp.runLater(function() {
+  //     player.sprite = redman;
+  //     player.sendUpdated();
+  //   }, 0.2);
+  // }, 0.2);
   
   let pstate = player_states.get(player.id);
 
@@ -144,13 +242,11 @@ function key_F(player) {
 }
 
 function key_T(player) {
-  house_items.put(player.tileX, player.tileY, blueman);
-  utils.log(`put object (blueman) ${player.tileX}, ${player.tileY}`);
+  house_items.put(player.tileX, player.tileY, blueman_static);
+  utils.log(`put object (blueman_static) ${player.tileX}, ${player.tileY}`);
 }
 
 function key_R(player) {
-  house_items.put(player.tileX, player.tileY, zeplogo);
-  utils.log(`put object (zeplogo) ${player.tileX}, ${player.tileY}`);
 }
 
 function key_Q(player) {}
@@ -158,8 +254,10 @@ function key_E(player) {}
 
 ScriptApp.onJoinPlayer.Add(function(player){
   // ScriptMap.moveObject(40, 67, 40, 67, 0);
-
-})
+  player.sprite = redman;
+  utils.log('redman set!');
+  player.sendUpdated();
+});
 
 // ScriptApp.onUpdate.Add(function (dt) {
 //   for (let id in ScriptApp.players) {
