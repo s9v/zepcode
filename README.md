@@ -43,3 +43,14 @@ yarn archive
 
 - [English](https://docs.zep.us/zep-script)
 - [Korean](https://docs-kr.zep.us/zep-script)
+
+### Information to run app
+
+- map URL (space invitation) - https://zep.us/play/DwNxRn
+
+1. MainApp.zip - Normal app
+- MainApp.zip is uploaded onto ac as a normal app and linked to the respective maps within the space which requires it's function.
+- Garden plots outside houses can have crops planted by player: press [P] to plant seed, [F] to water and harvest the crop eventually.
+- Cart area can allow user to view google map street view by pressing [Q] standing infront of the notice board.
+
+2. puzzle - 
