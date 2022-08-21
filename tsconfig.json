@@ -3,6 +3,5 @@
     "noEmit": false,
     "isolatedModules": false,
     "downlevelIteration": true,
-    "outDir": "ts-out/"
   }
 }
