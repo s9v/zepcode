@@ -135,14 +135,15 @@ class CropsCollection {
         return this.listOfCrops.hasOwnProperty(this._key(x, y));
     }
 
-    getGrowth(x, y) {
-        this.listOfCrops.forEach(element => {
-            if (element.coords == this._key(x, y)){
-                return element.growth;
-            }
-        });
-        return 0;
-    }
+    // getGrowth(x, y) {
+    //     this.listOfCrops.forEach(element => {
+    //         if (element.coords == this._key(x, y)){
+    //             utils.log(element.coords + ",  " + x + "," + y);
+    //             return element.growth;
+    //         }
+    //     });
+    //     return 0;
+    // }
 
     add(x, y, id, userId, growth) {
         utils.log("added to list");
@@ -229,16 +230,16 @@ function onStart() {
         }
         //if player is at the tile to interact wif noticeboard then can continue
         if (player.tileX == 30 && player.tileY == 14) {
-          if (player.tag.widget == null){
-            player.tag.widget = player.showWidget("sample.html", "top", 1000, 600);
-            player.tag.widget.onMessage.Add(function (player, msg) {	// Closes the widget when the 'type: close' message is sent from the widget to the App 
-              if (msg.type == "close") {
-                player.showCenterLabel("Tour has ended");
-                player.tag.widget.destroy();
-                player.tag.widget = null;
-              }
-            })
-          }
+            if (player.tag.widget == null) {
+                player.tag.widget = player.showWidget("sample.html", "top", 1000, 600);
+                player.tag.widget.onMessage.Add(function (player, msg) {	// Closes the widget when the 'type: close' message is sent from the widget to the App 
+                    if (msg.type == "close") {
+                        player.showCenterLabel("Tour has ended");
+                        player.tag.widget.destroy();
+                        player.tag.widget = null;
+                    }
+                })
+            }
         }
     });
 
@@ -271,12 +272,19 @@ function key_F(player) {
         utils.log(`nothing to water/harvest/clean up ${x} ${y}`);
     }
     else { //if tile is crop
-            //can call api to do action
-            //< 0 means withered, can clean up > 2 means can harvest
-            if (crops.getGrowth(x,y) < 0 || crops.getGrowth(x,y) > 3) {
+        //can call api to check growth for action
+        //< 0 means withered, can clean up > 2 means can harvest
+        // utils.log("growth: " + crops.getGrowth(x,y));
+        ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/get-crop-by-cord?x=${x}&y=${y}`, null, function (res) {
+            utils.log(res);
+            utils.log("get update");
+            let response = JSON.parse(res) as Crop;
+            if (response['growth'] < 0 || response['growth'] > 2) {
+
+                // if (crops.getGrowth(x,y) < 0 || crops.getGrowth(x,y) > 2) {
                 //call api to harvest/clean
-                // utils.log("growth: " + crops.getGrowth(x,y));
                 ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/remove-crop?x=${x}&y=${y}`, null, function (res) {
+                    utils.log(res);
                     utils.log("clean crops");
                     crops.remove(x, y);
                 })
@@ -284,16 +292,12 @@ function key_F(player) {
             else { //water the crop
                 //call api to water crop
                 ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/water-plant?x=${x}&y=${y}`, null, function (res) {
-                    if (res == "Cannot water"){
-                        crops.remove(x, y);
-                    }
-                    else{
-                        let response = JSON.parse(res) as Crop;
-                        crops.update(response['xCoordinate'], response['yCoordinate'], response['growth']);
-                        utils.log("You just watered the crop");
-                    }
+                    let response = JSON.parse(res) as Crop;
+                    crops.update(response['xCoordinate'], response['yCoordinate'], response['growth']);
+                    utils.log("You just watered the crop");
                 })
             }
+        })
     }
     if (pstate.picked_object == null) {
         if (!house_items.has(x, y)) {
@@ -327,17 +331,17 @@ function key_R(player) {
 function key_P(player) {
     //call api to plant
     ScriptApp.httpGet(`https://busanhackathon.azure-api.net/v1/plant-crops?UserId=${player.id}&XCoordinate=${player.tileX}&YCoordinate=${player.tileY}`,
-    null ,
-    function (res) {
-        if (res == "There is a crop that exists in the same coordinate")
-            utils.log(res);
-        else{
-        let response = JSON.parse(res) as Crop;
-            utils.log(res);
-            crops.add(response['xCoordinate'], response['yCoordinate'], response['id'], response['userId'], response['growth']);
-        utils.log("You just planted a crop");
-        }
-    })
+        null,
+        function (res) {
+            if (res == "There is a crop that exists in the same coordinate")
+                utils.log(res);
+            else {
+                let response = JSON.parse(res) as Crop;
+                utils.log(res);
+                crops.add(response['xCoordinate'], response['yCoordinate'], response['id'], response['userId'], response['growth']);
+                utils.log("You just planted a crop");
+            }
+        })
 }
 
 function key_Q(player) { }
